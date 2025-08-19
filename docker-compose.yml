@@ -6,7 +6,7 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - 9003:80
+      - 5002:80
     volumes:
        - ./src/:/var/www/html/
     image: moeinfatehi/xss_vulnerability_challenges:latest
