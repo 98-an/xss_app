@@ -12,11 +12,11 @@ pipeline {
   }
 
   options {
-  timestamps()
-  timeout(time: 25, unit: 'MINUTES')
-  disableResume()                  // évite les reprises de builds après redémarrage
-  buildDiscarder(logRotator(numToKeepStr: '15'))  // évite d’accumuler des anciens runs
-}
+    timestamps()
+    timeout(time: 25, unit: 'MINUTES')
+    disableResume() // évite les reprises de builds après redémarrage
+    buildDiscarder(logRotator(numToKeepStr: '15')) // évite d’accumuler des anciens runs
+  }
 
   stages {
 
@@ -55,7 +55,6 @@ pipeline {
             bandit -r . -f html -o reports/bandit-report.html
           '
         '''
-        // Si aucun test => cette étape échouera. Ajoute allowEmptyResults si tu veux tolérer.
         junit 'pytest-report.xml'
         publishHTML(target: [
           reportDir: "${REPORTS}",
@@ -80,7 +79,8 @@ pipeline {
         '''
       }
     }
-/*
+
+    /*
     stage('Gitleaks (Secrets)') {
       steps {
         sh '''
@@ -130,29 +130,30 @@ pipeline {
         ])
       }
     }
-*/
-    stage('SonarQube') {
-  steps {
-    withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
-      sh '''
-        set -eux
-        rm -rf .scannerwork || true
+    */
 
-        docker run --rm \
-          -e SONAR_HOST_URL="http://16.170.87.165:9000" \
-          -e SONAR_TOKEN="$SONAR_TOKEN" \
-          -v "$WORKSPACE":/usr/src \
-          -v "$WORKSPACE/.git":/usr/src/.git:ro \
-          sonarsource/sonar-scanner-cli:latest \
-          -Dsonar.projectKey="xss_app" \
-          -Dsonar.projectName="XSS App" \
-          -Dsonar.projectBaseDir=/usr/src \
-          -Dsonar.sources=. \
-          -Dsonar.scm.provider=git
-      '''
-    }
-  }
-}
+    stage('SonarQube') {
+      steps {
+        withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+          sh '''
+            set -eux
+            rm -rf .scannerwork || true
+
+            docker run --rm \
+              -e SONAR_HOST_URL="http://16.170.87.165:9000" \
+              -e SONAR_TOKEN="$SONAR_TOKEN" \
+              -v "$WORKSPACE":/usr/src \
+              -v "$WORKSPACE/.git":/usr/src/.git:ro \
+              sonarsource/sonar-scanner-cli:latest \
+              -Dsonar.projectKey="xss_app" \
+              -Dsonar.projectName="XSS App" \
+              -Dsonar.projectBaseDir=/usr/src \
+              -Dsonar.sources=. \
+              -Dsonar.scm.provider=git
+          '''
+        }
+      }
+    }
 
     stage('Build Image') {
       when {
@@ -240,7 +241,7 @@ pipeline {
         ])
       }
     }
-  } // stages
+  }
 
   post {
     always {
