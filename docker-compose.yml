@@ -2,8 +2,11 @@ version: '3'
 services:
   web:
     container_name: xss_vulnerability_challenges
-    image: moeinfatehi/xss_vulnerability_challenges:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
-      - "5002:80"
+      - 5002:80
     volumes:
-      - ./src/resources:/var/www/html:ro
+       - ./src/:/var/www/html/
+    image: moeinfatehi/xss_vulnerability_challenges:latest
