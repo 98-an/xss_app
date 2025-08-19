@@ -12,10 +12,11 @@ pipeline {
   }
 
   options {
-    timestamps()
-    timeout(time: 25, unit: 'MINUTES')
-    disableConcurrentBuilds()
-  }
+  timestamps()
+  timeout(time: 25, unit: 'MINUTES')
+  disableResume()                  // évite les reprises de builds après redémarrage
+  buildDiscarder(logRotator(numToKeepStr: '15'))  // évite d’accumuler des anciens runs
+}
 
   stages {
 
