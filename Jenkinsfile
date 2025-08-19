@@ -140,7 +140,7 @@ pipeline {
             rm -rf .scannerwork || true
 
             docker run --rm \
-              -e SONAR_HOST_URL="${SONAR_HOST_URL}" \
+              -e SONAR_HOST_URL=http://16.170.87.165:9000 \
               -e SONAR_TOKEN="$SONAR_TOKEN" \
               -v "$PWD":/usr/src \
               -v "$PWD/.git":/usr/src/.git:ro \
@@ -152,8 +152,8 @@ pipeline {
                 [ -d src ]  && SRC="src"
                 [ -d app ]  && SRC="${SRC},app"
 
-                ARGS="-Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                      -Dsonar.projectName=${SONAR_PROJECT_NAME} \
+                ARGS="-Dsonar.projectKey=xss_app \
+                      -Dsonar.projectName=XSS App} \
                       -Dsonar.projectBaseDir=/usr/src \
                       -Dsonar.sources=${SRC} \
                       -Dsonar.scm.provider=git \
