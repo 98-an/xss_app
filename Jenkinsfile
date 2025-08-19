@@ -132,42 +132,27 @@ pipeline {
     }
 */
     stage('SonarQube') {
-      steps {
-        withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
-          sh '''
-            set -eux
+  steps {
+    withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+      sh '''
+        set -eux
+        rm -rf .scannerwork || true
 
-            rm -rf .scannerwork || true
-
-            docker run --rm \
-              -e SONAR_HOST_URL=http://16.170.87.165:9000 \
-              -e SONAR_TOKEN="$SONAR_TOKEN" \
-              -v "$PWD":/usr/src \
-              -v "$PWD/.git":/usr/src/.git:ro \
-              --entrypoint bash sonarsource/sonar-scanner-cli:latest -lc '
-                set -eux
-                git config --global --add safe.directory /usr/src || true
-
-                SRC="."
-                [ -d src ]  && SRC="src"
-                [ -d app ]  && SRC="${SRC},app"
-
-                ARGS="-Dsonar.projectKey=xss_app \
-                      -Dsonar.projectName=XSS App} \
-                      -Dsonar.projectBaseDir=/usr/src \
-                      -Dsonar.sources=${SRC} \
-                      -Dsonar.scm.provider=git \
-                      -Dsonar.exclusions=reports/,.venv/,.pytest_cache/,_pycache_/,node_modules/"
-
-                # Ajoute la couverture si le fichier existe
-                [ -f /usr/src/coverage.xml ] && ARGS="$ARGS -Dsonar.python.coverage.reportPaths=coverage.xml"
-
-                sonar-scanner $ARGS
-              '
-          '''
-        }
-      }
-    }
+        docker run --rm \
+          -e SONAR_HOST_URL="http://16.170.87.165:9000" \
+          -e SONAR_TOKEN="$SONAR_TOKEN" \
+          -v "$WORKSPACE":/usr/src \
+          -v "$WORKSPACE/.git":/usr/src/.git:ro \
+          sonarsource/sonar-scanner-cli:latest \
+          -Dsonar.projectKey="xss_app" \
+          -Dsonar.projectName="XSS App" \
+          -Dsonar.projectBaseDir=/usr/src \
+          -Dsonar.sources=. \
+          -Dsonar.scm.provider=git
+      '''
+    }
+  }
+}
 
     stage('Build Image') {
       when {
