@@ -78,7 +78,7 @@ pipeline {
                 '''
             }
         }
-
+/*
         stage('SonarQube') {
             options { timeout(time: 60, unit: 'MINUTES') }
             steps {
@@ -111,6 +111,22 @@ pipeline {
                 }
             }
         }
+ */
+        stage('code analysis with sonarqube') {
+  environment {
+    scannerHome = tool 'SonarServer'
+  }
+  steps {
+    withSonarQubeEnv('SonarServer') {
+      sh '''${scannerHome}/bin/sonar-scanner \
+        -Dsonar.projectKey=xssapp \
+        -Dsonar.projectName=xssapp \
+        -Dsonar.projectVersion=1.0 \
+        -Dsonar.sources=src \
+        -Dsonar.organization=anakar'''
+    }
+  }
+}
 
         stage('Build Image') {
             when {
