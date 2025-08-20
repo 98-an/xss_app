@@ -85,7 +85,10 @@ pipeline {
         stage('Semgrep (SAST)') { ... }
         */
 
+        options { durabilityHint('MAX_SURVIVABILITY') }   // <- empêche l’erreur de reprise
+
         stage('SonarQube') {
+            options { timeout(time: 60, unit: 'MINUTES') }  // 1er run peut être long
             steps {
                 withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
                     sh '''
@@ -93,15 +96,18 @@ pipeline {
                         rm -rf .scannerwork || true
 
                         docker run --rm \
-                            -e SONAR_HOST_URL="http://16.170.87.165:9000" \
-                            -e SONAR_TOKEN="$SONAR_TOKEN" \
-                            -v "$WORKSPACE":/usr/src \
-                            sonarsource/sonar-scanner-cli:latest \
-                            -Dsonar.projectKey="xss_app" \
-                            -Dsonar.projectName="XSS App" \
-                            -Dsonar.sources=. \
-                            -Dsonar.scm.provider=git \
-                            -Dsonar.exclusions="**/.git/**,**/__pycache__/**,**/*.pyc,tests/**"
+                          -e SONAR_HOST_URL=http://16.170.87.165:9000 \
+                          -e SONAR_TOKEN="$SONAR_TOKEN" \
+                          -v "$PWD":/usr/src \
+                          -v "$PWD/.git":/usr/src/.git:ro \
+                          -v /var/jenkins_home/.sonar/cache:/opt/sonar-scanner/.sonar/cache \
+                          sonarsource/sonar-scanner-cli:latest \
+                          -Dsonar.projectKey=xss_app \
+                          -Dsonar.projectName="XSS App" \
+                          -Dsonar.projectBaseDir=/usr/src \
+                          -Dsonar.sources=. \
+                          -Dsonar.scm.provider=git \
+                          -Dsonar.exclusions=/node_modules/,/vendor/,/.min.js,/.map,/dist/,/build/,static/,resources/**
                     '''
                 }
             }
