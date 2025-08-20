@@ -14,13 +14,12 @@ pipeline {
     options {
         timestamps()
         timeout(time: 25, unit: 'MINUTES')
-        disableResume() // évite les reprises de builds après redémarrage
-        buildDiscarder(logRotator(numToKeepStr: '15')) // évite d’accumuler des anciens runs
+        disableResume() 
+        buildDiscarder(logRotator(numToKeepStr: '15'))
         durabilityHint('MAX_SURVIVABILITY')
     }
 
     stages {
-
         stage('Checkout') {
             steps {
                 checkout([$class: 'GitSCM',
@@ -82,14 +81,10 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'SONAR_TOKEN', variable: 'SONAR_TOKEN')]) {
                     script {
-                        // Création du dossier de cache si nécessaire
                         sh '''
                             mkdir -p /var/jenkins_home/.sonar/cache
                             chmod -R 755 /var/jenkins_home/.sonar/cache
-                        '''
 
-                        // Exécution du scanner dans Docker
-                        sh '''
                             set -eux
                             rm -rf .scannerwork
                             docker run --rm \
@@ -111,17 +106,6 @@ pipeline {
                 }
             }
         }
-    }
-
-    post {
-        success {
-            echo 'Analyse SonarQube terminée avec succès.'
-        }
-        failure {
-            echo 'Échec de l\'analyse SonarQube.'
-        }
-    }
-}
 
         stage('Build Image') {
             when {
@@ -214,6 +198,12 @@ pipeline {
     post {
         always {
             archiveArtifacts artifacts: "${REPORTS}/*", allowEmptyArchive: false
+        }
+        success {
+            echo 'Analyse SonarQube terminée avec succès.'
+        }
+        failure {
+            echo 'Échec de l\'analyse SonarQube.'
         }
     }
 }
