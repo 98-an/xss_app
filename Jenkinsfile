@@ -28,7 +28,9 @@ pipeline {
                     userRemoteConfigs: [[url: 'https://github.com/98-an/xss_app', credentialsId: 'git-cred']]
                 ])
                 sh 'rm -rf ${REPORTS} && mkdir -p ${REPORTS}'
-                script { env.SHORT_SHA = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim() }
+                script {
+                    env.SHORT_SHA = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
+                }
             }
         }
 
@@ -77,32 +79,35 @@ pipeline {
             }
         }
 
-        stage('SonarQube Analysis') {
+        stage('SonarQube') {
+            options { timeout(time: 60, unit: 'MINUTES') }
             steps {
-                withCredentials([string(credentialsId: 'SONAR_TOKEN', variable: 'SONAR_TOKEN')]) {
-                    script {
-                        sh '''
-                            mkdir -p /var/jenkins_home/.sonar/cache
-                            chmod -R 755 /var/jenkins_home/.sonar/cache
+                withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                    sh '''
+                        set -eux
+                        rm -rf .scannerwork || true
 
-                            set -eux
-                            rm -rf .scannerwork
-                            docker run --rm \
-                                --user $(id -u):$(id -g) \
-                                -e SONAR_HOST_URL=${SONAR_HOST_URL} \
-                                -e SONAR_TOKEN=${SONAR_TOKEN} \
-                                -v $PWD:/usr/src \
-                                -v $PWD/.git:/usr/src/.git:ro \
-                                -v /var/jenkins_home/.sonar/cache:/opt/sonar-scanner/.sonar/cache \
-                                sonarsource/sonar-scanner-cli:latest \
-                                -Dsonar.projectKey=xss_app \
-                                -Dsonar.projectName="XSS App" \
-                                -Dsonar.projectBaseDir=/usr/src \
-                                -Dsonar.sources=. \
-                                -Dsonar.scm.provider=git \
-                                -Dsonar.exclusions=/node_modules/,/vendor/,/*.min.js,/*.map,/dist/,/build/,static/,resources/**
-                        '''
-                    }
+                        # 1) Préparer le cache côté Jenkins
+                        mkdir -p /var/jenkins_home/.sonar/cache
+                        chmod -R 775 /var/jenkins_home/.sonar || true
+                        JUID=$(id -u)
+                        JGID=$(id -g)
+
+                        # 2) Scanner avec cache partagé
+                        docker run --rm \
+                            -u ${JUID}:${JGID} \
+                            -e SONAR_HOST_URL=${SONAR_HOST_URL} \
+                            -e SONAR_TOKEN="$SONAR_TOKEN" \
+                            -v "$PWD":/usr/src \
+                            -v "$PWD/.git":/usr/src/.git:ro \
+                            sonarsource/sonar-scanner-cli:latest \
+                            -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                            -Dsonar.projectName="${SONAR_PROJECT_NAME}" \
+                            -Dsonar.projectBaseDir=/usr/src \
+                            -Dsonar.sources=. \
+                            -Dsonar.scm.provider=git \
+                            -Dsonar.exclusions=/node_modules/,/vendor/,/.min.js,/.map,/dist/,/build/,static/,resources/**
+                    '''
                 }
             }
         }
