@@ -78,31 +78,50 @@ pipeline {
             }
         }
 
-        stage('SonarQube') {
-            options { timeout(time: 60, unit: 'MINUTES') }
+        stage('SonarQube Analysis') {
             steps {
-                withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
-                    sh '''
-                        set -eux
-                        rm -rf .scannerwork || true
+                withCredentials([string(credentialsId: 'SONAR_TOKEN', variable: 'SONAR_TOKEN')]) {
+                    script {
+                        // Création du dossier de cache si nécessaire
+                        sh '''
+                            mkdir -p /var/jenkins_home/.sonar/cache
+                            chmod -R 755 /var/jenkins_home/.sonar/cache
+                        '''
 
-                        docker run --rm \
-                          -e SONAR_HOST_URL=${SONAR_HOST_URL} \
-                          -e SONAR_TOKEN="$SONAR_TOKEN" \
-                          -v "$PWD":/usr/src \
-                          -v "$PWD/.git":/usr/src/.git:ro \
-                          -v /var/jenkins_home/.sonar/cache:/opt/sonar-scanner/.sonar/cache \
-                          sonarsource/sonar-scanner-cli:latest \
-                          -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                          -Dsonar.projectName="${SONAR_PROJECT_NAME}" \
-                          -Dsonar.projectBaseDir=/usr/src \
-                          -Dsonar.sources=. \
-                          -Dsonar.scm.provider=git \
-                          -Dsonar.exclusions=/node_modules/,/vendor/,/*.min.js,/*.map,/dist/,/build/,static/,resources/**
-                    '''
+                        // Exécution du scanner dans Docker
+                        sh '''
+                            set -eux
+                            rm -rf .scannerwork
+                            docker run --rm \
+                                --user $(id -u):$(id -g) \
+                                -e SONAR_HOST_URL=${SONAR_HOST_URL} \
+                                -e SONAR_TOKEN=${SONAR_TOKEN} \
+                                -v $PWD:/usr/src \
+                                -v $PWD/.git:/usr/src/.git:ro \
+                                -v /var/jenkins_home/.sonar/cache:/opt/sonar-scanner/.sonar/cache \
+                                sonarsource/sonar-scanner-cli:latest \
+                                -Dsonar.projectKey=xss_app \
+                                -Dsonar.projectName="XSS App" \
+                                -Dsonar.projectBaseDir=/usr/src \
+                                -Dsonar.sources=. \
+                                -Dsonar.scm.provider=git \
+                                -Dsonar.exclusions=/node_modules/,/vendor/,/*.min.js,/*.map,/dist/,/build/,static/,resources/**
+                        '''
+                    }
                 }
             }
         }
+    }
+
+    post {
+        success {
+            echo 'Analyse SonarQube terminée avec succès.'
+        }
+        failure {
+            echo 'Échec de l\'analyse SonarQube.'
+        }
+    }
+}
 
         stage('Build Image') {
             when {
