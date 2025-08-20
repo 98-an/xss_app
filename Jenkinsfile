@@ -16,6 +16,7 @@ pipeline {
         timeout(time: 25, unit: 'MINUTES')
         disableResume() // évite les reprises de builds après redémarrage
         buildDiscarder(logRotator(numToKeepStr: '15')) // évite d’accumuler des anciens runs
+        durabilityHint('MAX_SURVIVABILITY')
     }
 
     stages {
@@ -32,9 +33,6 @@ pipeline {
             }
         }
 
-        // =========================
-        // Python (OPTIONNEL)
-        // =========================
         stage('Python Lint & Tests & Bandit (si projet Python)') {
             when {
                 expression {
@@ -80,15 +78,8 @@ pipeline {
             }
         }
 
-        /*
-        stage('Gitleaks (Secrets)') { ... }
-        stage('Semgrep (SAST)') { ... }
-        */
-
-        options { durabilityHint('MAX_SURVIVABILITY') }   // <- empêche l’erreur de reprise
-
         stage('SonarQube') {
-            options { timeout(time: 60, unit: 'MINUTES') }  // 1er run peut être long
+            options { timeout(time: 60, unit: 'MINUTES') }
             steps {
                 withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
                     sh '''
@@ -96,18 +87,18 @@ pipeline {
                         rm -rf .scannerwork || true
 
                         docker run --rm \
-                          -e SONAR_HOST_URL=http://16.170.87.165:9000 \
+                          -e SONAR_HOST_URL=${SONAR_HOST_URL} \
                           -e SONAR_TOKEN="$SONAR_TOKEN" \
                           -v "$PWD":/usr/src \
                           -v "$PWD/.git":/usr/src/.git:ro \
                           -v /var/jenkins_home/.sonar/cache:/opt/sonar-scanner/.sonar/cache \
                           sonarsource/sonar-scanner-cli:latest \
-                          -Dsonar.projectKey=xss_app \
-                          -Dsonar.projectName="XSS App" \
+                          -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                          -Dsonar.projectName="${SONAR_PROJECT_NAME}" \
                           -Dsonar.projectBaseDir=/usr/src \
                           -Dsonar.sources=. \
                           -Dsonar.scm.provider=git \
-                          -Dsonar.exclusions=/node_modules/,/vendor/,/.min.js,/.map,/dist/,/build/,static/,resources/**
+                          -Dsonar.exclusions=/node_modules/,/vendor/,/*.min.js,/*.map,/dist/,/build/,static/,resources/**
                     '''
                 }
             }
@@ -199,7 +190,6 @@ pipeline {
                 ])
             }
         }
-
     }
 
     post {
