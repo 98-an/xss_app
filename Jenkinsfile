@@ -30,7 +30,7 @@ pipeline {
             steps {
                 checkout([
                     $class: 'GitSCM',
-                    branches: [[name: '*/master']],
+                    branches: [[name: '/master']],
                     extensions: [[$class: 'CloneOption', shallow: true, depth: 1]],
                     userRemoteConfigs: [[url: 'https://github.com/98-an/xss_app', credentialsId: 'git-cred']]
                 ])
