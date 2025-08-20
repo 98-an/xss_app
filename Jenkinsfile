@@ -1,4 +1,10 @@
 pipeline {
+  agent any
+  stages {
+    stage('Sanity') { steps { echo 'Pipeline OK' } }
+  }
+}
+/* pipeline {
     agent any
 
     environment {
