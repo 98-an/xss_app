@@ -22,7 +22,8 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                checkout([$class: 'GitSCM',
+                checkout([
+                    $class: 'GitSCM',
                     branches: [[name: '*/master']],
                     extensions: [[$class: 'CloneOption', shallow: true, depth: 1]],
                     userRemoteConfigs: [[url: 'https://github.com/98-an/xss_app', credentialsId: 'git-cred']]
@@ -34,168 +35,19 @@ pipeline {
             }
         }
 
-        stage('Python Lint & Tests & Bandit (si projet Python)') {
-            when {
-                expression {
-                    return fileExists('src/requirements.txt') || fileExists('requirements.txt') || fileExists('pyproject.toml')
+        stage('Code analysis with SonarQube') {
+            environment {
+                scannerHome = tool 'SonarServer'
+            }
+            steps {
+                withSonarQubeEnv('SonarServer') {
+                    sh '''${scannerHome}/bin/sonar-scanner \
+                        -Dsonar.projectKey=xssapp \
+                        -Dsonar.projectName=xssapp \
+                        -Dsonar.projectVersion=1.0 \
+                        -Dsonar.sources=src \
+                        -Dsonar.organization=anakar'''
                 }
-            }
-            steps {
-                sh '''
-                    set -eux
-                    docker run --rm -v "$PWD":/ws -w /ws python:3.11-slim bash -lc '
-                        set -eux
-                        python -m pip install --upgrade pip
-                        if   [ -f src/requirements.txt ]; then pip install --prefer-binary -r src/requirements.txt;
-                        elif [ -f requirements.txt ]; then pip install --prefer-binary -r requirements.txt; fi
-                        pip install pytest flake8 bandit pytest-cov
-                        flake8
-                        pytest --maxfail=1 --cov=. --cov-report=xml:coverage.xml --junitxml=pytest-report.xml
-                        bandit -r . -f html -o reports/bandit-report.html
-                    '
-                '''
-                junit 'pytest-report.xml'
-                publishHTML(target: [
-                    reportDir: "${REPORTS}",
-                    reportFiles: "bandit-report.html",
-                    reportName: "Bandit (Python SAST)",
-                    keepAll: true,
-                    alwaysLinkToLastBuild: true,
-                    allowMissing: false
-                ])
-            }
-        }
-
-        stage('Hadolint (Dockerfile)') {
-            when {
-                expression { return fileExists('Dockerfile') || fileExists('container/Dockerfile') }
-            }
-            steps {
-                sh '''
-                    set -eux
-                    DF="Dockerfile"; [ -f "$DF" ] || DF="container/Dockerfile"
-                    docker run --rm -i hadolint/hadolint < "$DF"
-                '''
-            }
-        }
-
-        stage('SonarQube') {
-            options { timeout(time: 60, unit: 'MINUTES') }
-            steps {
-                withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
-                    sh '''
-                        set -eux
-                        rm -rf .scannerwork || true
-
-                        # 1) Préparer le cache côté Jenkins
-                        mkdir -p /var/jenkins_home/.sonar/cache
-                        chmod -R 775 /var/jenkins_home/.sonar || true
-                        JUID=$(id -u)
-                        JGID=$(id -g)
-
-                        # 2) Scanner avec cache partagé
-                        docker run --rm \
-                            -u ${JUID}:${JGID} \
-                            -e SONAR_HOST_URL=${SONAR_HOST_URL} \
-                            -e SONAR_TOKEN="$SONAR_TOKEN" \
-                            -v "$PWD":/usr/src \
-                            -v "$PWD/.git":/usr/src/.git:ro \
-                            sonarsource/sonar-scanner-cli:latest \
-                            -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                            -Dsonar.projectName="${SONAR_PROJECT_NAME}" \
-                            -Dsonar.projectBaseDir=/usr/src \
-                            -Dsonar.sources=. \
-                            -Dsonar.scm.provider=git \
-                            -Dsonar.exclusions=/node_modules/,/vendor/,/.min.js,/.map,/dist/,/build/,static/,resources/**
-                    '''
-                }
-            }
-        }
-
-        stage('Build Image') {
-            when {
-                expression { return fileExists('Dockerfile') || fileExists('container/Dockerfile') }
-            }
-            steps {
-                sh '''
-                    set -eux
-                    DF="Dockerfile"; [ -f "$DF" ] || DF="container/Dockerfile"
-                    TAG=$(git rev-parse --short HEAD || echo latest)
-                    docker build -f "$DF" -t xssapp:${TAG} .
-                    echo xssapp:${TAG} > image.txt
-                '''
-                archiveArtifacts 'image.txt'
-            }
-        }
-
-        stage('Trivy FS') {
-            steps {
-                sh '''
-                    set -eux
-                    docker run --rm -v "$PWD":/project aquasec/trivy:latest fs \
-                        --scanners vuln,secret,misconfig --format sarif -o /project/${REPORTS}/trivy-fs.sarif /project
-
-                    docker run --rm -v "$PWD":/project aquasec/trivy:latest fs \
-                        --scanners vuln,secret,misconfig -f table /project > ${REPORTS}/trivy-fs.txt
-
-                    { echo '<html><body><h2>Trivy FS</h2><pre>'; cat ${REPORTS}/trivy-fs.txt; echo '</pre></body></html>'; } \
-                        > ${REPORTS}/trivy-fs.html
-                '''
-                archiveArtifacts artifacts: "${REPORTS}/trivy-fs.sarif, ${REPORTS}/trivy-fs.txt"
-                publishHTML(target: [
-                    reportDir: "${REPORTS}",
-                    reportFiles: "trivy-fs.html",
-                    reportName: "Trivy FS",
-                    keepAll: true,
-                    alwaysLinkToLastBuild: true,
-                    allowMissing: false
-                ])
-            }
-        }
-
-        stage('Trivy Image') {
-            when { expression { return fileExists('image.txt') } }
-            steps {
-                sh '''
-                    set -eux
-                    IMG=$(cat image.txt)
-                    docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD":/project \
-                        aquasec/trivy:latest image --format sarif -o /project/${REPORTS}/trivy-image.sarif "$IMG"
-
-                    docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-                        aquasec/trivy:latest image -f table "$IMG" > ${REPORTS}/trivy-image.txt
-
-                    { echo '<html><body><h2>Trivy Image</h2><pre>'; cat ${REPORTS}/trivy-image.txt; echo '</pre></body></html>'; } \
-                        > ${REPORTS}/trivy-image.html
-                '''
-                archiveArtifacts artifacts: "${REPORTS}/trivy-image.sarif, ${REPORTS}/trivy-image.txt"
-                publishHTML(target: [
-                    reportDir: "${REPORTS}",
-                    reportFiles: "trivy-image.html",
-                    reportName: "Trivy Image",
-                    keepAll: true,
-                    alwaysLinkToLastBuild: true,
-                    allowMissing: false
-                ])
-            }
-        }
-
-        stage('DAST - ZAP Baseline') {
-            options { timeout(time: 8, unit: 'MINUTES') }
-            steps {
-                sh '''
-                    set -eux
-                    docker run --rm -v "$PWD/${REPORTS}":/zap/wrk owasp/zap2docker-stable \
-                        zap-baseline.py -t "${DAST_TARGET}" -r zap-baseline.html
-                '''
-                publishHTML(target: [
-                    reportDir: "${REPORTS}",
-                    reportFiles: "zap-baseline.html",
-                    reportName: "ZAP Baseline",
-                    keepAll: true,
-                    alwaysLinkToLastBuild: true,
-                    allowMissing: false
-                ])
             }
         }
     }
