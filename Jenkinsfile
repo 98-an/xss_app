@@ -5,7 +5,7 @@ pipeline {
         REPORTS            = 'reports'
         DAST_TARGET        = 'http://16.170.87.165:5002'
 
-        // SonarQube (self-hosted)
+
         SONAR_HOST_URL     = 'http://16.170.87.165:9000'
         SONAR_PROJECT_KEY  = 'xss_app'
         SONAR_PROJECT_NAME = 'XSS App'
