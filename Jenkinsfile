@@ -54,9 +54,9 @@ pipeline {
 
         stage('Deploy Container') {
             steps {
-                sh 'docker stop vulnlab || true'
-                sh 'docker rm vulnlab || true'
-                sh 'docker run -d --name vulnlab -p 5000:5000 yasdevsec/xssapp:v2'
+                sh 'docker stop vulnlab || true '
+                sh 'docker rm vulnlab || true '
+                sh 'docker run -d --name vulnlab -p 5002:80 yasdevsec/xssapp:v2'
             }
         }
 
@@ -65,14 +65,12 @@ pipeline {
             steps {
                 sh '''#!/usr/bin/env bash
                     set -euxo pipefail
-
-                    # 1) tirer ZAP (repo officiel sur GHCR)
                     docker pull ghcr.io/zaproxy/zaproxy:stable
 
                     # 2) définir la cible : ton conteneur xssapp est exposé sur le port 5000
                     #    - si Jenkins est sur la même VM que le conteneur, on peut utiliser --network host + http://localhost:5000
                     #    - sinon, mets l'IP publique de la VM (ex: http://13.50.222.204:5000)
-                    TARGET="http://localhost:5000"
+                    TARGET="http://13.50.222.204:5002/"
 
                     # 3) lancer un scan complet (spider + active scan) et générer des rapports
                     docker run --rm --network host \
