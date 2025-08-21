@@ -35,14 +35,7 @@ pipeline {
                 }
             }
         }
-      /*      stage('Docker Push') {
-            steps {
-                withCredentials([string(credentialsId: 'dockerhub', variable: 'dockerhubpwd')]) {
-                    sh 'docker login -u yasdevsec -p ${dockerhubpwd}'
-                    sh 'docker push yasdevsec/xssapp:v2'
-                }
-            }
-        } */
+
    stage('Push Image to Hub') {
     steps {
         withCredentials([usernamePassword(credentialsId: 'dockerhub', passwordVariable: 'PASS', usernameVariable: 'USER')]) {
