@@ -53,13 +53,16 @@ pipeline {
         }
 
         stage('Deploy Container') {
-            steps {
-                sh 'docker stop vulnlab || true '
-                sh 'docker rm vulnlab || true '
-                sh 'docker run -d --name vulnlab -p 5002:80 yasdevsec/xssapp:v2'
-            }
-        }
-
+  steps {
+    sh '''
+      set -e
+      IMG="yasdevsec/xssapp:v2"; C="vulnlab"
+      docker rm -f "$C" >/dev/null 2>&1 || true
+      docker image inspect "$IMG" >/dev/null 2>&1 || docker pull "$IMG"
+      docker run -d --name "$C" --restart unless-stopped -p 5002:80 "$IMG"
+    '''
+  }
+}
         stage('ZAP Full Scan') {
             options { timeout(time: 30, unit: 'MINUTES') }
             steps {
