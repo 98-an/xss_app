@@ -54,7 +54,7 @@ pipeline {
 
         stage('Deploy Container') {
             steps {
-                sh 'sudo kill -9 $(docker inspect -f \'{{.State.Pid}}\' vulnlab) || true'
+                sh 'docker stop py || true'
                 sh 'docker rm -f vulnlab || true'
                 sh 'docker run -d --name vulnlab -p 5002:80 yasdevsec/xssapp:v2'
             }
@@ -65,14 +65,8 @@ pipeline {
             steps {
                 sh '''#!/usr/bin/env bash
                     set -euxo pipefail
-
-                    # 1) Télécharger ZAP
                     docker pull ghcr.io/zaproxy/zaproxy:stable
-
-                    # 2) Définir la cible : ton conteneur xssapp exposé sur le port 5002
                     TARGET="http://13.50.222.204:5002/"
-
-                    # 3) Lancer un scan complet (spider + active scan) et générer des rapports
                     docker run --rm --network host \
                         -v "$PWD":/zap/wrk \
                         ghcr.io/zaproxy/zaproxy:stable \
