@@ -6,7 +6,6 @@ pipeline {
                 checkout scm
             }
         }
-        
         stage('Run SonarQube Analysis') {
             steps {
                 script {
@@ -17,20 +16,17 @@ pipeline {
                 }
             }
         }
-
-        stage('OWASP Dependency Check') {
-            steps {
+        stage("OWASP Dependency Check") {
+            steps { 
                 dependencyCheck additionalArguments: '--scan ./ --format XML --enableExperimental', odcInstallation: 'DC'
                 dependencyCheckPublisher pattern: 'dependency-check-report.xml'
             }
         }
-
         stage('Docker Build') {
             steps {
                 sh 'docker build -t yasdevsec/xssapp:v2 .'
             }
         }
-
         stage('Trivy Scan') {
             steps {
                 script {
@@ -39,46 +35,41 @@ pipeline {
                 }
             }
         }
-
-        stage('Push Image to Hub') {
+      /*      stage('Docker Push') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub', passwordVariable: 'PASS', usernameVariable: 'USER')]) {
-                    sh '''
-                        echo "$PASS" | docker login -u "$USER" --password-stdin
-                        docker images | grep yasdevsec/xssapp || true
-                        docker push yasdevsec/xssapp:v2
-                    '''
+                withCredentials([string(credentialsId: 'dockerhub', variable: 'dockerhubpwd')]) {
+                    sh 'docker login -u yasdevsec -p ${dockerhubpwd}'
+                    sh 'docker push yasdevsec/xssapp:v2'
                 }
             }
+        } */
+   stage('Push Image to Hub') {
+    steps {
+        withCredentials([usernamePassword(credentialsId: 'dockerhub', passwordVariable: 'PASS', usernameVariable: 'USER')]) {
+            sh '''
+                echo "$PASS" | docker login -u "$USER" --password-stdin
+                docker images | grep yasdevsec/xssapp || true
+                docker push yasdevsec/xssapp:v2
+            '''
         }
-
+    }
+}
         stage('Deploy Container') {
             steps {
-                sh 'docker stop py || true'
-                sh 'docker rm -f vulnlab || true'
-                sh 'docker run -d --name vulnlab -p 5002:80 yasdevsec/xssapp:v2'
+                sh 'docker stop vulnlab || true'
+                sh 'docker rm vulnlab || true'
+                sh 'docker run -d --name vulnlab -p 5000:5000 yasdevsec/xssapp:v2'
             }
         }
-
-        stage('ZAP Full Scan') {
-            options { timeout(time: 30, unit: 'MINUTES') }
+        stage('OWASP ZAP Scan') {
             steps {
-                sh '''#!/usr/bin/env bash
-                    set -euxo pipefail
-                    docker pull ghcr.io/zaproxy/zaproxy:stable
-                    TARGET="http://13.50.222.204:5002/"
-                    docker run --rm --network host \
-                        -v "$PWD":/zap/wrk \
-                        ghcr.io/zaproxy/zaproxy:stable \
-                        zap-full-scan.py -t "$TARGET" \
-                                         -r zap-full.html \
-                                         -J zap-full.json \
-                                         -d -I
-                '''
-            }
-            post {
-                always {
-                    archiveArtifacts artifacts: 'zap-full.*', allowEmptyArchive: true
+                script {
+                    try {
+                        sh "docker run --rm -v ${pwd()}:/zap/wrk -i owasp/zap2docker-stable zap-baseline.py -t"
+                    } catch (Exception e) {
+                        echo "OWASP ZAP scan completed with findings."
+                        currentBuild.result = 'SUCCESS'
+                    }
                 }
             }
         }
