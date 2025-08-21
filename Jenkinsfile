@@ -69,7 +69,6 @@ pipeline {
 
                     # 2) définir la cible : ton conteneur xssapp est exposé sur le port 5000
                     #    - si Jenkins est sur la même VM que le conteneur, on peut utiliser --network host + http://localhost:5000
-                    #    - sinon, mets l'IP publique de la VM (ex: http://13.50.222.204:5000)
                     TARGET="http://13.50.222.204:5002/"
 
                     # 3) lancer un scan complet (spider + active scan) et générer des rapports
