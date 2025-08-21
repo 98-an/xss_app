@@ -56,8 +56,8 @@ pipeline {
 }
         stage('Deploy Container') {
             steps {
-                sh 'docker stop vulnlab || true'
-                sh 'docker rm vulnlab || true'
+                sh 'Sudo docker stop vulnlab || true'
+                sh 'Sudo docker rm vulnlab || true'
                 sh 'docker run -d --name vulnlab -p 5000:5000 yasdevsec/xssapp:v2'
             }
         }
