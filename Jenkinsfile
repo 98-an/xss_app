@@ -61,17 +61,34 @@ pipeline {
                 sh 'docker run -d --name vulnlab -p 5000:5000 yasdevsec/xssapp:v2'
             }
         }
-        stage('OWASP ZAP Scan') {
-            steps {
-                script {
-                    try {
-                        sh "docker run --rm -v ${pwd()}:/zap/wrk -i owasp/zap2docker-stable zap-baseline.py -t"
-                    } catch (Exception e) {
-                        echo "OWASP ZAP scan completed with findings."
-                        currentBuild.result = 'SUCCESS'
-                    }
-                }
-            }
-        }
+        
+        stage('ZAP Full Scan') {
+  options { timeout(time: 30, unit: 'MINUTES') }
+  steps {
+    sh '''#!/usr/bin/env bash
+      set -euxo pipefail
+
+      # 1) tirer ZAP (repo officiel sur GHCR)
+      docker pull ghcr.io/zaproxy/zaproxy:stable
+
+      # 2) définir la cible : ton conteneur xssapp est exposé sur le port 5000
+      #    - si Jenkins est sur la même VM que le conteneur, on peut utiliser --network host + http://localhost:5000
+      #    - sinon, mets l'IP publique de la VM (ex: http://13.50.222.204:5000)
+      TARGET="http://localhost:5000"
+
+      # 3) lancer un scan complet (spider + active scan) et générer des rapports
+      docker run --rm --network host \
+        -v "$PWD":/zap/wrk \
+        ghcr.io/zaproxy/zaproxy:stable \
+        zap-full-scan.py -t "$TARGET" \
+                         -r zap-full.html \
+                         -J zap-full.json \
+                         -d -I
+    '''
+  }
+  post {
+    always {
+      archiveArtifacts artifacts: 'zap-full.*', allowEmptyArchive: true
     }
+  }
 }
