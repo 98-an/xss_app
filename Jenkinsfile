@@ -24,7 +24,7 @@ pipeline {
         }
         stage('Docker Build') {
             steps {
-                sh 'docker build -t yasdevsec/yasdevsec/xssapp:v2 .'
+                sh 'docker build -t yasdevsec/xssapp:v2 .'
             }
         }
         stage('Trivy Scan') {
