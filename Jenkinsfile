@@ -44,13 +44,15 @@ pipeline {
             }
         } */
      stage('Push Image to Hub') {
-    steps {
-        script {
-            docker.withRegistry('https://index.docker.io/v1/', 'dockerhub') {
-                dockerImage.push("v2")
-            }
-        }
+  steps {
+    withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'yasdevsec', passwordVariable: 'Anakarekaremat2001#')]) {
+      sh '''
+        echo "$DOCKER_PSW" | docker login -u "$DOCKER_USR" --password-stdin
+        docker images | grep yasdevsec/xssapp || true
+        docker push yasdevsec/xssapp:v2
+      '''
     }
+  }
 } 
         stage('Deploy Container') {
             steps {
