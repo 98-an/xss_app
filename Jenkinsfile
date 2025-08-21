@@ -35,23 +35,23 @@ pipeline {
                 }
             }
         }
- /*       stage('Docker Push') {
+      /*      stage('Docker Push') {
             steps {
-                withCredentials([string(credentialsId: 'dockerhub-pwd', variable: 'dockerhubpwd')]) {
+                withCredentials([string(credentialsId: 'dockerhub', variable: 'dockerhubpwd')]) {
                     sh 'docker login -u yasdevsec -p ${dockerhubpwd}'
                     sh 'docker push yasdevsec/xssapp:v2'
                 }
             }
         } */
-         stage('Push Image to Hub') {
+     stage('Push Image to Hub') {
     steps {
         script {
-            docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-pwd') {
+            docker.withRegistry('https://index.docker.io/v1/', 'dockerhub') {
                 dockerImage.push("v2")
             }
         }
     }
-}
+} 
         stage('Deploy Container') {
             steps {
                 sh 'docker stop vulnlab || true'
