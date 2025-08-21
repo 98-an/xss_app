@@ -11,7 +11,7 @@ pipeline {
                 script {
                     def scannerHome = tool name: 'sonar-qube', type: 'hudson.plugins.sonar.SonarRunnerInstallation'
                     withSonarQubeEnv('sonar-server') {
-                        sh "${scannerHome}/bin/sonar-scanner -Dsonar.projectKey=xssapp-scan -Dsonar.sources=src"
+                        sh "${scannerHome}/bin/sonar-scanner -Dsonar.projectKey=xssapp2 -Dsonar.sources=src"
                     }
                 }
             }
@@ -24,13 +24,13 @@ pipeline {
         }
         stage('Docker Build') {
             steps {
-                sh 'docker build -t yasdevsec/python-demoapp:v2 .'
+                sh 'docker build -t yasdevsec/yasdevsec/xssapp:v2 .'
             }
         }
         stage('Trivy Scan') {
             steps {
                 script {
-                    def dockerImage = "yasdevsec/python-demoapp:v2"
+                    def dockerImage = "yasdevsec/xssapp:v2"
                     sh "trivy image ${dockerImage} --no-progress --severity HIGH,CRITICAL"
                 }
             }
@@ -39,7 +39,7 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'dockerhub-pwd', variable: 'dockerhubpwd')]) {
                     sh 'docker login -u yasdevsec -p ${dockerhubpwd}'
-                    sh 'docker push yasdevsec/python-demoapp:v2'
+                    sh 'docker push yasdevsec/xssapp:v2'
                 }
             }
         }
@@ -47,7 +47,7 @@ pipeline {
             steps {
                 sh 'docker stop vulnlab || true'
                 sh 'docker rm vulnlab || true'
-                sh 'docker run -d --name vulnlab -p 5000:5000 yasdevsec/python-demoapp:v2'
+                sh 'docker run -d --name vulnlab -p 5000:5000 yasdevsec/xssapp:v2'
             }
         }
         stage('OWASP ZAP Scan') {
