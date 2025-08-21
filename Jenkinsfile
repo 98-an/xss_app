@@ -43,17 +43,17 @@ pipeline {
                 }
             }
         } */
-     stage('Push Image to Hub') {
-  steps {
-    withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'yasdevsec', passwordVariable: 'Anakarekaremat2001#')]) {
-      sh '''
-        echo "$DOCKER_PSW" | docker login -u "$DOCKER_USR" --password-stdin
-        docker images | grep yasdevsec/xssapp || true
-        docker push yasdevsec/xssapp:v2
-      '''
+   stage('Push Image to Hub') {
+    steps {
+        withCredentials([usernamePassword(credentialsId: 'dockerhub', passwordVariable: 'PASS', usernameVariable: 'USER')]) {
+            sh '''
+                echo "$PASS" | docker login -u "$USER" --password-stdin
+                docker images | grep yasdevsec/xssapp || true
+                docker push yasdevsec/xssapp:v2
+            '''
+        }
     }
-  }
-} 
+}
         stage('Deploy Container') {
             steps {
                 sh 'docker stop vulnlab || true'
